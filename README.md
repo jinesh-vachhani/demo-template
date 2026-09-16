@@ -2,6 +2,7 @@
 
 A minimal Web3 demo showcasing a portfolio vault with a modern frontend, backend API, and smart contracts.
 
+
 ## 🧱 Stack
 
 - **Frontend**: Next.js
