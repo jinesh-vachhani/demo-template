@@ -1,3 +1,5 @@
+import { useAuthStore } from '@/lib/auth-store';
+
 const baseUrl =
   process.env.NODE_ENV === 'production'
     ? ''
@@ -11,11 +13,17 @@ export interface ApiResponse {
 
 export const baseAPI = async (url: string, method: any, body?: unknown) => {
   try {
+    const token = useAuthStore.getState().token;
+
     const res = await fetch(`${baseUrl}/user${url}`, {
       method,
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
+      // Sends the httpOnly auth cookie set by the backend on same-site/CORS
+      // requests; the Authorization header above covers non-cookie clients.
+      credentials: 'include',
       body: method !== 'GET' && body ? JSON.stringify(body) : undefined,
     });
 

@@ -11,6 +11,7 @@ import {
   SignOut
 } from '@phosphor-icons/react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 
 import {
   Sidebar,
@@ -26,6 +27,7 @@ import {
   SidebarSeparator
 } from '@/components/ui/sidebar'
 import { useAPAXStore } from '@/lib/store'
+import { useAuthStore } from '@/lib/auth-store'
 
 const mainNavItems = [
   {
@@ -67,7 +69,18 @@ const supportItems = [
 ]
 
 export function AppSidebar() {
+  const router = useRouter()
   const { activeView, setActiveView } = useAPAXStore()
+  const { user, logout } = useAuthStore()
+
+  const handleSignOut = () => {
+    logout()
+    router.push('/login')
+  }
+
+  const initials = user?.name
+    ? user.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()
+    : 'JD'
 
   return (
     <Sidebar className="border-r border-[#2A2A2A] bg-[#0D0D0D]">
@@ -149,13 +162,17 @@ export function AppSidebar() {
         <div className="glass rounded-lg p-3">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#D4AF37] to-[#B8860B] flex items-center justify-center text-[#0A0A0A] font-semibold text-sm">
-              JD
+              {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-[#E8E8E8] truncate">John Doe</p>
-              <p className="text-xs text-[#888888] truncate">client@apax.institutional</p>
+              <p className="text-sm font-medium text-[#E8E8E8] truncate">{user?.name ?? 'John Doe'}</p>
+              <p className="text-xs text-[#888888] truncate">{user?.email ?? 'client@apax.institutional'}</p>
             </div>
-            <button className="p-1.5 rounded-md hover:bg-[#1A1A1A] text-[#888888] hover:text-[#E8E8E8] transition-colors">
+            <button
+              onClick={handleSignOut}
+              aria-label="Sign out"
+              className="p-1.5 rounded-md hover:bg-[#1A1A1A] text-[#888888] hover:text-[#E8E8E8] transition-colors"
+            >
               <SignOut className="h-4 w-4" />
             </button>
           </div>

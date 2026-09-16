@@ -12,35 +12,47 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { loginApi } from '@/lib/services/login.api';
+import { useAuthStore } from '@/lib/auth-store';
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function LoginPage() {
   const router = useRouter()
+  const login = useAuthStore((state) => state.login)
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [vaultOpening, setVaultOpening] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    // setIsLoading(true)
-    const res = await loginApi({ email, password })
-    console.log(res)
-    //NEED TO CLEAN UP ONCE ALL DONE, didn't get time due to mongodb connection issue.
-    // Simulate authentication delay
-    // await new Promise(resolve => setTimeout(resolve, 1000))
 
-    // Trigger vault door animation
-    // setVaultOpening(true)
-
-    // Navigate after animation
-    // await new Promise(resolve => setTimeout(resolve, 1000))
-    // router.push('/dashboard')
-    if(res.data) {
-      router.push('/dashbaord')
-    } else {
-      alert('Something went wrong')
+    if (!email.trim() || !password) {
+      setError('Please enter both email and password')
+      return
     }
+    if (!EMAIL_REGEX.test(email)) {
+      setError('Please enter a valid email address')
+      return
+    }
+
+    setError('')
+    setIsLoading(true)
+
+    const res = await loginApi({ email, password })
+
+    if (res.success && res.data?.token && res.data?.user) {
+      login(res.data.user, res.data.token)
+      setVaultOpening(true)
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      router.push('/dashboard')
+      return
+    }
+
+    setIsLoading(false)
+    setError(res.message || 'Invalid email or password')
   }
 
   const handleWalletConnect = async () => {
@@ -207,7 +219,7 @@ export default function LoginPage() {
 
             {/* Email Tab */}
             <TabsContent value="email">
-              <form onSubmit={handleLogin} className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4" noValidate>
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-[#C0C0C0]">Email</Label>
                   <div className="relative">
@@ -217,7 +229,10 @@ export default function LoginPage() {
                       type="email"
                       placeholder="client@apax.institutional"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => {
+                        setEmail(e.target.value)
+                        setError('')
+                      }}
                       className="pl-10 bg-[#1A1A1A] border-[#2A2A2A] text-[#E8E8E8] placeholder:text-[#888888] focus:border-[#D4AF37] focus:ring-[#D4AF37]/20"
                       required
                     />
@@ -233,7 +248,10 @@ export default function LoginPage() {
                       type={showPassword ? 'text' : 'password'}
                       placeholder="Enter your password"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value)
+                        setError('')
+                      }}
                       className="pl-10 pr-10 bg-[#1A1A1A] border-[#2A2A2A] text-[#E8E8E8] placeholder:text-[#888888] focus:border-[#D4AF37] focus:ring-[#D4AF37]/20"
                       required
                     />
@@ -246,6 +264,10 @@ export default function LoginPage() {
                     </button>
                   </div>
                 </div>
+
+                {error && (
+                  <p className="text-sm text-red-400" role="alert">{error}</p>
+                )}
 
                 <div className="flex items-center justify-between text-sm">
                   <label className="flex items-center gap-2 text-[#888888]">

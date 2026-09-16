@@ -199,12 +199,3 @@ export function formatWeight(grams: number): string {
   }
   return `${grams.toFixed(2)} g`
 }
-
-// Calculate APX-i token breakdown (60% Gold, 30% Silver, 10% Platinum)
-export function calculateAPXiBreakdown(tokens: number) {
-  return {
-    goldWeight: tokens * 0.60,
-    silverWeight: tokens * 0.30,
-    platinumWeight: tokens * 0.10
-  }
-}

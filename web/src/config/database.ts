@@ -4,10 +4,7 @@ const MONGO_URI = process.env.MONGO_URI as string;
 
 const connectDatabase = async (): Promise<void> => {
   try {
-    await mongoose.connect(MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    } as mongoose.ConnectOptions);
+    await mongoose.connect(MONGO_URI);
 
     console.log("Mongoose Connected");
   } catch (error) {

